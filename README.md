@@ -3,7 +3,7 @@
 ## Pré-requisitos
 
 - **JDK 17** (ou superior) instalado
-  - Verificar variáveis do ambiente se em "variáveis do sistema" o `JAVA_HOME` está redirecionado ao JDK na versão do seu Java
+  - Verificar variáveis do ambiente se em **"Variáveis do sistema"** o `JAVA_HOME` está redirecionado ao JDK na versão do seu Java
   - Exemplo: `C:\Program Files\Java\jdk-21`
 - **Gerenciador de dependências**: **Maven** (também pode ser Gradle, mas vamos usar o Maven)
   - **Maven**: usa arquivos XML (`pom.xml`) para gerenciar dependências, mais verboso, amplamente utilizado
@@ -16,8 +16,8 @@
 
 1. Baixe o binário em: https://maven.apache.org/download.cgi
 2. Extraia para uma pasta, por exemplo: `C:\Maven\apache-maven-3.x.x`
-3. Crie a variável do ambiente em "variáveis do sistema" **MAVEN_HOME** apontando para essa pasta
-4. Clique 2x no Path da variável do sistema e adicione: `%MAVEN_HOME%\bin`
+3. Crie a variável do ambiente em **"Variáveis do sistema"** **MAVEN_HOME** apontando para essa pasta
+4. Clique 2x no **Path** em **"Variavéis do sistema"** e adicione: `%MAVEN_HOME%\bin`
 5. Abra um novo terminal e valide:
    ```bash
    mvn -v
@@ -42,13 +42,13 @@
    | **Name** | `meu-projeto` |
    | **Package name** | `com.seugrupo.meuprojeto` |
    | **Packaging** | Jar |
-   | **Java** | 17 |
+   | **Java** | Versão do seu Java |
 
 3. Em **Dependencies**, adicione (exemplos comuns):
 
    - **Spring Web**: adiciona suporte para criar controllers e expor endpoints HTTP (REST), além de servidor embutido (Tomcat/Jetty/Undertow)
    - **Spring Boot DevTools**: melhora o fluxo de desenvolvimento com restart automático e live reload (não é recomendado para produção)
-   - **Lombok** (opcional): gera código repetitivo em tempo de compilação, como getters, setters, construtores e `toString`, via anotações
+   - **Lombok**: gera código repetitivo em tempo de compilação, como getters, setters, construtores e `toString`, via anotações
    - **Spring Data JPA** + **H2 Database**: facilita o acesso a dados com repositórios JPA e ORM (Hibernate), e o H2 é um banco em memória ótimo para testes e desenvolvimento rápido
 
 4. Clique em **Generate** para baixar o `.zip`
@@ -70,7 +70,7 @@
 
 O **Model** (ou Entidade) representa uma tabela no banco de dados. Cada atributo da classe corresponde a uma coluna.
 
-**Pasta:** `src/main/java/com/monitoria/crud/model/`
+**Crie a pasta "model" na seguinte rota:** `src/main/java/com/monitoria/crud/`
 
 ### Exemplo - Usuario.java
 
