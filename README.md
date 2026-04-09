@@ -331,13 +331,94 @@ public class Cliente extends Pessoa {
 }
 ```
 
+### Anotações importantes na herança
+
+**`@Inheritance` (na classe pai):**
+Define como as entidades herdadas serão armazenadas no banco.
+
+**`@EqualsAndHashCode(callSuper = true)` (nas classes filhas):**
+O `@Data` do Lombok gera `equals()` e `hashCode()` considerando apenas os atributos da própria classe. Com `callSuper = true`, ele inclui os atributos herdados da classe pai na comparação.
+
+```java
+// COM callSuper = true (recomendado)
+equals() → compara id + nome + email + senha + salario + cargo
+
+// SEM callSuper (padrão do @Data)
+equals() → compara apenas salario + cargo
+```
+
 ### Estratégias de herança
 
-| Estratégia | Como funciona | Quando usar |
-|------------|---------------|-------------|
-| `TABLE_PER_CLASS` | Cada classe tem sua tabela completa | Quando as subclasses são bem diferentes |
-| `SINGLE_TABLE` | Tudo em uma só tabela (usa coluna `dtype`) | Quando as subclasses são similares |
-| `JOINED` | Tabela base + tabelas filhas com FK | Melhor normalização, mas mais queries |
+**TABLE_PER_CLASS** (usada no exemplo acima):
+```
+┌──────────────────┐
+│   pessoas        │
+├──────────────────┤
+│ id (PK)          │
+│ nome             │
+│ email            │
+│ senha            │
+└──────────────────┘
+         ↓ (tabela própria, com todos os campos)
+┌──────────────────┐
+│   funcionarios   │     ┌──────────────────┐
+├──────────────────┤     │   clientes       │
+│ id (PK)          │     ├──────────────────┤
+│ nome             │     │ id (PK)          │
+│ email            │     │ nome             │
+│ senha            │     │ email            │
+│ salario          │     │ senha            │
+│ cargo            │     │ telefone         │
+└──────────────────┘     └──────────────────┘
+```
+- Cada tabela contém **todos** os campos (pai + filho)
+- Queries são mais rápidas (tabela única)
+- Pode gerar dados duplicados
+
+**SINGLE_TABLE:**
+```
+┌────────────────────────────────────────┐
+│   pessoa (única tabela)                │
+├────────────────────────────────────────┤
+│ id (PK)                                │
+│ nome                                   │
+│ email                                  │
+│ senha                                  │
+│ salario                                │  ← NULL para Cliente
+│ cargo                                  │  ← NULL para Cliente
+│ telefone                               │  ← NULL para Funcionario
+│ dtype (tipo: "Funcionario" ou "Cliente")│
+└────────────────────────────────────────┘
+```
+- Tudo em **uma tabela só**
+- Campos específicos das subclasses ficam NULL
+- Usa coluna `dtype` para identificar o tipo
+
+**JOINED:**
+```
+┌──────────────────┐
+│   pessoas        │     ┌──────────────────┐
+├──────────────────┤     │   funcionarios   │
+│ id (PK)          │────►│ id (FK, PK)     │
+│ nome             │     │ salario         │
+│ email            │     │ cargo           │
+│ senha            │     └──────────────────┘
+└──────────────────┘
+                       ┌──────────────────┐
+                       │   clientes       │
+                       │ id (FK, PK)     │
+                       │ telefone         │
+                       └──────────────────┘
+```
+- Tabela base + tabelas filhas com **foreign key**
+- Melhor normalização (sem dados duplicados)
+- Queries com JOIN (mais lentas)
+
+| Estratégia | Vantagem | Desvantagem |
+|------------|----------|-------------|
+| `TABLE_PER_CLASS` | Queries rápidas | Dados duplicados |
+| `SINGLE_TABLE` | Simples, rápido | Muitos campos NULL |
+| `JOINED` | Normalizado | Queries com JOIN |
 
 ## 1.6 Onde ficam os métodos? (Model vs Service)
 
