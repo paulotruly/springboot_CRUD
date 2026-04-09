@@ -123,3 +123,233 @@ public class Usuario {
 | `@AllArgsConstructor` | `Usuario(id, nome, email, senha)` - com todos os argumentos |
 
 > **Nota:** Ambas as anotações são recomendadas para entidades JPA. Se a classe não tiver atributos definidos, as duas geram construtores idênticos, causando erro de compilação.
+
+---
+
+## 1.4 Repository
+
+O **Repository** é uma interface que abstrai o acesso ao banco de dados. O Spring Data JPA já fornece métodos CRUD prontos, **sem precisar escrever SQL**.
+
+**Crie a pasta "repository" na seguinte rota:** `src/main/java/com/monitoria/crud/`
+
+### Exemplo - UsuarioRepository.java
+
+```java
+package com.monitoria.crud.repository;
+
+import com.monitoria.crud.model.Usuario;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
+}
+```
+
+### Entendendo a estrutura
+
+```java
+JpaRepository<Usuario, Long>
+       ↑
+    Entidade    ↑
+            Tipo do ID
+```
+
+| Parâmetro | Descrição |
+|-----------|-----------|
+| `Usuario` | A entidade (model) que o repository vai gerenciar |
+| `Long` | O tipo de dado da chave primária (id) |
+
+### Por que usar `extends`?
+
+`extends JpaRepository` significa que nossa interface **herda** todos os métodos do JpaRepository. Não precisamos implementar nada - o Spring Data JPA faz isso automaticamente em tempo de execução.
+
+### Métodos herdados automaticamente
+
+| Método | Função |
+|--------|--------|
+| `save(entity)` | Criar ou atualizar |
+| `findById(id)` | Buscar por ID (retorna `Optional`) |
+| `findAll()` | Listar todos |
+| `deleteById(id)` | Deletar por ID |
+| `count()` | Contar registros |
+| `existsById(id)` | Verificar se existe |
+| `deleteAll()` | Deletar todos |
+
+### Criando métodos personalizados (opcional)
+
+O Spring Data JPA gera queries automaticamente pelo nome do método:
+
+```java
+public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
+    
+    List<Usuario> findByNome(String nome);
+    
+    List<Usuario> findByEmailContaining(String email);
+    
+    Optional<Usuario> findByEmail(String email);
+}
+```
+
+| Nome do método | SQL gerado |
+|---------------|------------|
+| `findByNome` | `SELECT * FROM usuarios WHERE nome = ?` |
+| `findByEmailContaining` | `SELECT * FROM usuarios WHERE email LIKE '%?%'` |
+| `findByEmail` | `SELECT * FROM usuarios WHERE email = ?` |
+
+> **Nota:** O `@Repository` é opcional, pois o Spring detecta interfaces que extendem `JpaRepository` automaticamente. Porém, é uma boa prática incluir para clareza.
+
+### Múltiplas entidades
+
+Para cada nova entidade, crie um **Model** e um **Repository** correspondente:
+
+```
+src/main/java/com/monitoria/crud/
+├── model/
+│   ├── Usuario.java
+│   ├── Produto.java      ← nova entidade
+│   └── Categoria.java    ← nova entidade
+└── repository/
+    ├── UsuarioRepository.java
+    ├── ProdutoRepository.java      ← repository da nova entidade
+    └── CategoriaRepository.java    ← repository da nova entidade
+```
+
+**O que muda em cada um:**
+
+| Entidade | Model | Repository |
+|----------|-------|------------|
+| Usuario | `Usuario.java` | `JpaRepository<Usuario, Long>` |
+| Produto | `Produto.java` | `JpaRepository<Produto, Long>` |
+| Categoria | `Categoria.java` | `JpaRepository<Categoria, Long>` |
+
+**Regra:** Cada Repository aponta para sua própria entidade e o tipo do ID. O resto permanece igual.
+
+---
+
+## 1.5 Herança de entidades (opcional)
+
+Quando duas entidades compartilham atributos comuns, podemos usar herança para evitar repetição de código.
+
+### Exemplo: Funcionario e Cliente herdam de Pessoa
+
+```
+Pessoa (classe base)
+├── id
+├── nome
+├── email
+└── senha
+    │
+    ├── Funcionario (herda de Pessoa)
+    │   ├── salario
+    │   └── cargo
+    │
+    └── Cliente (herda de Pessoa)
+        └── telefone
+```
+
+### Pessoa.java (classe base)
+
+```java
+package com.monitoria.crud.model;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Inheritance;
+import jakarta.persistence.InheritanceType;
+import jakarta.persistence.Table;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+@Entity
+@Table(name = "pessoas")
+@Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Pessoa {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String nome;
+    private String email;
+    private String senha;
+}
+```
+
+### Funcionario.java (herda de Pessoa)
+
+```java
+package com.monitoria.crud.model;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+@Entity
+@Table(name = "funcionarios")
+@Data
+@EqualsAndHashCode(callSuper = true)
+@NoArgsConstructor
+@AllArgsConstructor
+public class Funcionario extends Pessoa {
+
+    private double salario;
+    private String cargo;
+}
+```
+
+### Cliente.java (herda de Pessoa)
+
+```java
+package com.monitoria.crud.model;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+@Entity
+@Table(name = "clientes")
+@Data
+@EqualsAndHashCode(callSuper = true)
+@NoArgsConstructor
+@AllArgsConstructor
+public class Cliente extends Pessoa {
+
+    private String telefone;
+}
+```
+
+### Estratégias de herança
+
+| Estratégia | Como funciona | Quando usar |
+|------------|---------------|-------------|
+| `TABLE_PER_CLASS` | Cada classe tem sua tabela completa | Quando as subclasses são bem diferentes |
+| `SINGLE_TABLE` | Tudo em uma só tabela (usa coluna `dtype`) | Quando as subclasses são similares |
+| `JOINED` | Tabela base + tabelas filhas com FK | Melhor normalização, mas mais queries |
+
+## 1.6 Onde ficam os métodos? (Model vs Service)
+
+O **Model (Entidade)** contém apenas **dados** (atributos, getters, setters). **Não** coloque lógica de negócio aqui.
+
+### O que vai em cada camada
+
+| Camada | O que faz | Exemplo |
+|--------|-----------|---------|
+| **Model** | Apenas dados da tabela | `id`, `nome`, `email` |
+| **Repository** | Acesso ao banco | `findAll()`, `save()` |
+| **Service** | Lógica de negócio | "calcular desconto", "validar dados" |
+| **Controller** | Endpoints HTTP | Receber requisições |
+
+> Continua...
