@@ -63,3 +63,63 @@
    ```
    http://localhost:8080/
    ```
+
+---
+
+## 1.3 Model (Entidade)
+
+O **Model** (ou Entidade) representa uma tabela no banco de dados. Cada atributo da classe corresponde a uma coluna.
+
+**Pasta:** `src/main/java/com/monitoria/crud/model/`
+
+### Exemplo - Usuario.java
+
+```java
+package com.monitoria.crud.model;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Entity
+@Table(name = "usuarios")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Usuario {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String nome;
+    private String email;
+    private String senha;
+}
+```
+
+### Anotações principais
+
+| Anotação | Função |
+|----------|--------|
+| `@Entity` | Marca a classe como uma entidade JPA |
+| `@Table(name = "usuarios")` | Define o nome da tabela no banco |
+| `@Id` | Marca a chave primária |
+| `@GeneratedValue` | Auto-incremento do ID |
+| `@Data` (Lombok) | Gera getters, setters, toString, equals, hashCode |
+| `@NoArgsConstructor` | Gera construtor sem argumentos (necessário para JPA) |
+| `@AllArgsConstructor` | Gera construtor com todos os atributos |
+
+### Construtores gerados pelo Lombok
+
+| Anotação | Construtor gerado |
+|----------|-------------------|
+| `@NoArgsConstructor` | `Usuario()` - sem argumentos |
+| `@AllArgsConstructor` | `Usuario(id, nome, email, senha)` - com todos os argumentos |
+
+> **Nota:** Ambas as anotações são recomendadas para entidades JPA. Se a classe não tiver atributos definidos, as duas geram construtores idênticos, causando erro de compilação.
