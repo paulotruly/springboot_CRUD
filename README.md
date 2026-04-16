@@ -420,17 +420,337 @@ equals() → compara apenas salario + cargo
 | `SINGLE_TABLE` | Simples, rápido | Muitos campos NULL |
 | `JOINED` | Normalizado | Queries com JOIN |
 
-## 1.6 Onde ficam os métodos? (Model vs Service)
+## 1.6 Service (Camada de Lógica de Negócio)
 
-O **Model (Entidade)** contém apenas **dados** (atributos, getters, setters). **Não** coloque lógica de negócio aqui.
+O **Service** é a camada responsável por conter a **lógica de negócio** da aplicação. É o "cozinheiro" do restaurante: recebe os pedidos do Controller (atendente) e prepara o resultado usando o Repository (estoque).
 
-### O que vai em cada camada
+### Por que usar Service?
+
+Imagine um sistema de biblioteca:
+
+```
+❌ SEM Service (Controller faz tudo):
+   Controller → Repository (faz tudo direto, sem validações)
+
+✅ COM Service (separação de responsabilidades):
+   Controller → Service → Repository
+   - Controller: recebe requisição
+   - Service: valida regras de negócio (ex: "o livro está disponível?")
+   - Repository: busca/salva no banco
+```
+
+**Vantagens do Service:**
+| Vantagem | Explicação |
+|----------|------------|
+| **Separação de responsabilidades** | Cada camada faz uma coisa |
+| **Manutenção facilitada** | Mudanças na lógica não afetam o Controller |
+| **Testes mais fáceis** | Testa a lógica separadamente |
+| **Reutilização** | Mesmo Service pode ser usado por múltiplos Controllers |
+
+---
+
+### Estrutura do Service
+
+O Service é dividido em **duas partes**:
+
+```
+service/
+├── UsuarioService.java       (interface - contrato)
+└── UsuarioServiceImpl.java   (implementação - código)
+```
+
+| Arquivo | O que é | Para que serve |
+|---------|---------|----------------|
+| **Interface** | Define o "contrato" | Lista os métodos que devem existir |
+| **Implementação** | Contém o código | Implementa os métodos da interface |
+
+> **Por que usar interface + implementação?**  
+> Facilita a troca de implementação (ex: mudar de MySQL para MongoDB) sem alterar o código que usa o Service.
+
+---
+
+### Criando a pasta Service
+
+**Crie a pasta "service" na seguinte rota:** `src/main/java/com/monitoria/crud/`
+
+```
+src/main/java/com/monitoria/crud/
+├── model/
+│   └── Usuario.java
+├── repository/
+│   └── UsuarioRepository.java
+└── service/                          ← nova pasta
+    ├── UsuarioService.java           ← interface
+    └── UsuarioServiceImpl.java       ← implementação
+```
+
+---
+
+### 1.6.1 Interface (UsuarioService.java)
+
+```java
+package com.monitoria.crud.service;
+
+import com.monitoria.crud.model.Usuario;
+import java.util.List;
+import java.util.Optional;
+
+public interface UsuarioService {
+
+    List<Usuario> findAll();              // listar todos
+    Optional<Usuario> findById(Long id);  // buscar por ID
+    Usuario save(Usuario usuario);         // criar novo
+    Usuario update(Long id, Usuario usuario); // atualizar
+    void deleteById(Long id);              // deletar
+}
+```
+
+### Explicação linha por linha
+
+```java
+public interface UsuarioService {
+```
+- **`interface`**: Define um contrato que a implementação deve seguir
+- O Controller não sabe **como** os métodos funcionam, só **que** eles existem
+
+```java
+List<Usuario> findAll();
+```
+- **`List<Usuario>`**: Retorna uma lista de usuários
+- `List` é uma interface do Java para coleções ordenadas
+
+```java
+Optional<Usuario> findById(Long id);
+```
+- **`Optional<Usuario>`**: Retorna "pode ser um usuário ou nada"
+- **Boas práticas**: Evita `NullPointerException`
+- Exemplo: se buscar usuário com ID 99 (inexistente), retorna `Optional.empty()` ao invés de `null`
+
+```java
+Usuario save(Usuario usuario);
+```
+- Recebe um usuário para **criar** e retorna o usuário criado (com ID gerado)
+
+```java
+Usuario update(Long id, Usuario usuario);
+```
+- Recebe o **ID** do usuário a atualizar + os **novos dados**
+- Retorna o usuário atualizado
+
+```java
+void deleteById(Long id);
+```
+- **`void`**: Não retorna nada, só executa a ação
+
+---
+
+### 1.6.2 Implementação (UsuarioServiceImpl.java)
+
+```java
+package com.monitoria.crud.service;
+
+import com.monitoria.crud.model.Usuario;
+import com.monitoria.crud.repository.UsuarioRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Optional;
+
+@Service
+public class UsuarioServiceImpl implements UsuarioService {
+
+    @Autowired
+    private UsuarioRepository usuarioRepository;
+
+    @Override
+    public List<Usuario> findAll() {
+        return usuarioRepository.findAll();
+    }
+
+    @Override
+    public Optional<Usuario> findById(Long id) {
+        return usuarioRepository.findById(id);
+    }
+
+    @Override
+    public Usuario save(Usuario usuario) {
+        return usuarioRepository.save(usuario);
+    }
+
+    @Override
+    public Usuario update(Long id, Usuario usuario) {
+        Optional<Usuario> existingUsuario = usuarioRepository.findById(id);
+        
+        if (existingUsuario.isPresent()) {
+            Usuario updatedUsuario = existingUsuario.get();
+            updatedUsuario.setNome(usuario.getNome());
+            updatedUsuario.setEmail(usuario.getEmail());
+            updatedUsuario.setSenha(usuario.getSenha());
+            return usuarioRepository.save(updatedUsuario);
+        } else {
+            throw new RuntimeException("Usuário não encontrado com ID: " + id);
+        }
+    }
+
+    @Override
+    public void deleteById(Long id) {
+        usuarioRepository.deleteById(id);
+    }
+}
+```
+
+### Explicação linha por linha
+
+```java
+@Service
+public class UsuarioServiceImpl implements UsuarioService {
+```
+- **`@Service`**: Anotação do Spring que registra como um **bean** (componente de serviço)
+- **`implements UsuarioService`**: Diz que esta classe segue o contrato da interface
+
+```java
+@Autowired
+private UsuarioRepository usuarioRepository;
+```
+- **`@Autowired`**: **Injeção de dependência** - o Spring cria e injeta o Repository automaticamente
+- **`private`**: Só a própria classe usa, não é exposta para fora
+
+```java
+@Override
+public List<Usuario> findAll() {
+    return usuarioRepository.findAll();
+}
+```
+- **`@Override`**: Indica que este método **sobrescreve** o da interface (obrigatório)
+- Simplesmente **delega** a operação para o Repository
+
+```java
+@Override
+public Optional<Usuario> findById(Long id) {
+    return usuarioRepository.findById(id);
+}
+```
+- Repassa a busca para o Repository
+- O Repository já retorna `Optional`, então não precisa fazer nada além disso
+
+```java
+@Override
+public Usuario save(Usuario usuario) {
+    return usuarioRepository.save(usuario);
+}
+```
+- Simplesmente salva o usuário no banco via Repository
+
+```java
+@Override
+public Usuario update(Long id, Usuario usuario) {
+    Optional<Usuario> existingUsuario = usuarioRepository.findById(id);
+```
+- Primeiro **busca** se o usuário existe no banco
+
+```java
+    if (existingUsuario.isPresent()) {
+        Usuario updatedUsuario = existingUsuario.get();
+```
+- **`isPresent()`**: Verifica se o Optional contém um valor
+- **`get()`**: Extrai o valor do Optional
+
+```java
+        updatedUsuario.setNome(usuario.getNome());
+        updatedUsuario.setEmail(usuario.getEmail());
+        updatedUsuario.setSenha(usuario.getSenha());
+```
+- Atualiza **campo por campo** para manter o ID original
+- O ID não pode ser alterado na atualização!
+
+```java
+        return usuarioRepository.save(updatedUsuario);
+```
+- Salva o usuário atualizado (o JPA entende que é uma **atualização**, não criação)
+
+```java
+    } else {
+        throw new RuntimeException("Usuário não encontrado com ID: " + id);
+    }
+}
+```
+- Se não encontrou o usuário, lança uma **exceção**
+- Isso faz a requisição falhar com erro 500
+
+---
+
+### 1.6.3 Diagrama de fluxo completo
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        USUÁRIO (Requisição HTTP)            │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Controller                                                  │
+│  - Recebe a requisição (GET/POST/PUT/DELETE)                │
+│  - Valida parâmetros básicos                                │
+│  - Chama o Service                                           │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Service                                                     │
+│  - Contém lógica de negócio                                  │
+│  - Valida regras específicas                                 │
+│  - Chama o Repository                                        │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Repository                                                  │
+│  - Acessa o banco de dados                                  │
+│  - Executa SQL automaticamente (JPA)                        │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  DATABASE (H2 em memória)                                  │
+│  - Armazena os dados                                        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 1.6.4 Exemplo: Service com validação
+
+O Service brilha quando precisamos de **lógica de negócio**. Exemplo:
+
+```java
+@Override
+public Usuario save(Usuario usuario) {
+    // Validar se email já existe
+    if (usuarioRepository.findByEmail(usuario.getEmail()).isPresent()) {
+        throw new RuntimeException("Email já cadastrado!");
+    }
+    
+    // Validar se nome não está vazio
+    if (usuario.getNome() == null || usuario.getNome().isEmpty()) {
+        throw new RuntimeException("Nome é obrigatório!");
+    }
+    
+    return usuarioRepository.save(usuario);
+}
+```
+
+Isso **não** deveria estar no Controller ou Repository - é **lógica de negócio**.
+
+---
+
+### 1.6.5 Onde ficam os métodos? (Resumo)
 
 | Camada | O que faz | Exemplo |
 |--------|-----------|---------|
 | **Model** | Apenas dados da tabela | `id`, `nome`, `email` |
 | **Repository** | Acesso ao banco | `findAll()`, `save()` |
-| **Service** | Lógica de negócio | "calcular desconto", "validar dados" |
+| **Service** | Lógica de negócio | Validações, cálculos, regras |
 | **Controller** | Endpoints HTTP | Receber requisições |
 
 > Continua...
