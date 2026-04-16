@@ -754,3 +754,323 @@ Isso **não** deveria estar no Controller ou Repository - é **lógica de negóc
 | **Controller** | Endpoints HTTP | Receber requisições |
 
 > Continua...
+
+---
+
+## 1.7 Controller (Camada de Endpoints)
+
+O **Controller** é a camada que recebe as requisições HTTP e retorna as respostas.
+
+```
+
+| Camada | Responsabilidade |
+|--------|-----------------|
+| **Controller** | Receber requisições HTTP, retornar respostas |
+| **Service** | Lógica de negócio (validações, regras) |
+| **Repository** | Acesso ao banco de dados |
+
+---
+
+### Criando a pasta Controller
+
+**Crie a pasta "controller" na seguinte rota:** `src/main/java/com/monitoria/crud/`
+
+```
+src/main/java/com/monitoria/crud/
+├── model/
+│   └── Usuario.java
+├── repository/
+│   └── UsuarioRepository.java
+├── service/
+│   ├── UsuarioService.java
+│   └── UsuarioServiceImpl.java
+└── controller/                      ← nova pasta
+    └── UsuarioController.java
+```
+
+---
+
+### 1.7.1 UsuarioController.java
+
+```java
+package com.monitoria.crud.controller;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.monitoria.crud.model.Usuario;
+import com.monitoria.crud.service.UsuarioService;
+
+@RestController
+@RequestMapping("/usuarios")
+public class UsuarioController {
+
+    @Autowired
+    private UsuarioService usuarioService;
+
+    @GetMapping
+    public List<Usuario> listarTodos() {
+        return usuarioService.findAll();
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Usuario> buscarPorId(@PathVariable Long id) {
+        return usuarioService.findById(id)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping
+    public ResponseEntity<Usuario> criar(@RequestBody Usuario usuario) {
+        Usuario salvo = usuarioService.save(usuario);
+        return ResponseEntity.status(HttpStatus.CREATED).body(salvo);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Usuario> atualizar(@PathVariable Long id, @RequestBody Usuario usuario) {
+        try {
+            Usuario atualizado = usuarioService.update(id, usuario);
+            return ResponseEntity.ok(atualizado);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletar(@PathVariable Long id) {
+        usuarioService.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
+}
+```
+
+---
+
+### 1.7.2 Anotações do Controller
+
+| Anotação | Função |
+|----------|--------|
+| `@RestController` | Marca a classe como controlador REST (retorna JSON) |
+| `@RequestMapping("/usuarios")` | Define o caminho base dos endpoints |
+| `@GetMapping` | Mapeia requisições GET |
+| `@PostMapping` | Mapeia requisições POST |
+| `@PutMapping` | Mapeia requisições PUT |
+| `@DeleteMapping` | Mapeia requisições DELETE |
+| `@PathVariable` | Extrai valor da URL (ex: `/usuarios/{id}`) |
+| `@RequestBody` | Converte JSON do corpo da requisição em objeto Java |
+
+---
+
+### 1.7.3 Parâmetros de entrada
+
+| Anotação | Exemplo de URL | Origem do valor |
+|----------|---------------|-----------------|
+| `@PathVariable` | `/usuarios/{id}` → 5 | URL (path) |
+| `@RequestBody` | Body JSON → `{"nome": "João"}` | Corpo da requisição |
+| `@RequestParam` | `/buscar?nome=João` | Query string |
+
+**Exemplo prático:**
+
+```java
+// GET /usuarios/5
+@GetMapping("/{id}")
+public ResponseEntity<Usuario> buscarPorId(@PathVariable Long id) { ... }
+
+// POST /usuarios com body {"nome": "João", "email": "joao@email.com"}
+@PostMapping
+public ResponseEntity<Usuario> criar(@RequestBody Usuario usuario) { ... }
+```
+
+---
+
+### 1.7.4 ResponseEntity
+
+`ResponseEntity` permite controlar o **status HTTP** da resposta:
+
+| Status | Uso |
+|--------|-----|
+| `200 OK` | Requisição bem-sucedida |
+| `201 CREATED` | Recurso criado com sucesso |
+| `204 No Content` | Sucesso sem corpo (DELETE) |
+| `404 Not Found` | Recurso não encontrado |
+
+**Exemplos:**
+
+```java
+// Sucesso (200)
+return ResponseEntity.ok(usuario);
+
+// Criado (201)
+return ResponseEntity.status(HttpStatus.CREATED).body(usuario);
+
+// Não encontrado (404)
+return ResponseEntity.notFound().build();
+
+// Sem conteúdo (204)
+return ResponseEntity.noContent().build();
+```
+
+---
+
+### 1.7.5 Endpoints do CRUD
+
+| Método HTTP | Endpoint | Descrição | Status |
+|-------------|----------|-----------|--------|
+| `GET` | `/usuarios` | Lista todos | 200 |
+| `GET` | `/usuarios/{id}` | Busca por ID | 200 / 404 |
+| `POST` | `/usuarios` | Cria novo | 201 |
+| `PUT` | `/usuarios/{id}` | Atualiza | 200 / 404 |
+| `DELETE` | `/usuarios/{id}` | Deleta | 204 |
+
+---
+
+### 1.7.6 Explicação linha por linha
+
+```java
+@RestController
+@RequestMapping("/usuarios")
+public class UsuarioController {
+```
+- **`@RestController`**: Marca como controlador REST
+- **`@RequestMapping("/usuarios")`**: Prefixo `/usuarios` para todos os endpoints
+
+```java
+@Autowired
+private UsuarioService usuarioService;
+```
+- **`@Autowired`**: Injeta o Service automaticamente
+
+```java
+@GetMapping
+public List<Usuario> listarTodos() {
+    return usuarioService.findAll();
+}
+```
+- Lista todos os usuários, retorna lista vazia se não houver nenhum
+
+```java
+@GetMapping("/{id}")
+public ResponseEntity<Usuario> buscarPorId(@PathVariable Long id) {
+    return usuarioService.findById(id)
+        .map(ResponseEntity::ok)
+        .orElse(ResponseEntity.notFound().build());
+}
+```
+- Busca usuário por ID
+- Se encontrado → 200 com usuário
+- Se não encontrado → 404
+
+```java
+@PostMapping
+public ResponseEntity<Usuario> criar(@RequestBody Usuario usuario) {
+    Usuario salvo = usuarioService.save(usuario);
+    return ResponseEntity.status(HttpStatus.CREATED).body(salvo);
+}
+```
+- Cria novo usuário
+- **`@RequestBody`**: Converte JSON em objeto `Usuario`
+- **`HttpStatus.CREATED`**: Retorna 201
+
+```java
+@PutMapping("/{id}")
+public ResponseEntity<Usuario> atualizar(@PathVariable Long id, @RequestBody Usuario usuario) {
+    try {
+        Usuario atualizado = usuarioService.update(id, usuario);
+        return ResponseEntity.ok(atualizado);
+    } catch (RuntimeException e) {
+        return ResponseEntity.notFound().build();
+    }
+}
+```
+- Atualiza usuário existente
+- **`@PathVariable`**: ID da URL
+- **`@RequestBody`**: Novos dados do JSON
+- Se não existir → captura exceção → 404
+
+```java
+@DeleteMapping("/{id}")
+public ResponseEntity<Void> deletar(@PathVariable Long id) {
+    usuarioService.deleteById(id);
+    return ResponseEntity.noContent().build();
+}
+```
+- Deleta usuário por ID
+- **`Void`**: Sem retorno de corpo
+- **`noContent()`**: Status 204
+
+---
+
+### 1.7.7 Fluxo de uma requisição PUT
+
+```
+PUT /usuarios/5
+Body: {"nome": "Maria", "email": "maria@email.com"}
+
+┌─────────────────────────────────────────────────────────────┐
+│ Controller                                                    │
+│   @PathVariable id = 5                                        │
+│   @RequestBody usuario = {Maria, maria@email.com}            │
+│   usuarioService.update(5, usuario)                          │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Service                                                       │
+│   findById(5) → existe?                                      │
+│     sim → setNome + setEmail → save() → retorna atualizado   │
+│     não → throw RuntimeException                             │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Repository                                                    │
+│   findById(5) → SELECT * FROM usuarios WHERE id = 5          │
+│   save(usuario) → UPDATE usuarios SET nome=..., email=...    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 1.7.8 Testando os endpoints
+
+Com o servidor rodando (`mvn spring-boot:run`), teste no navegador ou com Postman/Insomnia:
+
+```bash
+# Listar todos
+GET http://localhost:8080/usuarios
+
+# Buscar por ID
+GET http://localhost:8080/usuarios/1
+
+# Criar (JSON no body)
+POST http://localhost:8080/usuarios
+Content-Type: application/json
+{
+  "nome": "João",
+  "email": "joao@email.com",
+  "senha": "123456"
+}
+
+# Atualizar
+PUT http://localhost:8080/usuarios/1
+Content-Type: application/json
+{
+  "nome": "João Atualizado",
+  "email": "joao@novo.com",
+  "senha": "novasenha"
+}
+
+# Deletar
+DELETE http://localhost:8080/usuarios/1
+```
